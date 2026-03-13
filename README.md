@@ -1,48 +1,55 @@
-# Pichicho 🐶
+# Tablero General — San Jorge
 
-App comunitaria (solo perros) para reportar casos de perros perdidos, encontrados, heridos o vistos sueltos.
+Sitio estático (HTML/CSS/JS vanilla) pensado para correr en una PC de oficina y publicarse por Cloudflare Tunnel en:
 
-## Stack
-- Expo + React Native + TypeScript
-- Firebase Authentication + Firestore + Storage
-- react-native-maps
-- expo-location
-- expo-notifications
-
-## Configuración
-1. Creá un proyecto en Firebase.
-2. Habilitá Authentication (email/password), Firestore y Storage.
-3. Copiá `.env.example` a `.env` y completá las variables `EXPO_PUBLIC_FIREBASE_*`.
-4. Instalá dependencias:
-   ```bash
-   npm install
-   ```
-5. Ejecutá la app:
-   ```bash
-   npx expo start
-   ```
+- https://tablero.sanjorgelimpieza.com.ar/
 
 ## Estructura
-- `src/screens`: pantallas
-- `src/components`: componentes reutilizables
-- `src/services`: Firebase y lógica de datos
-- `src/types`: tipos de dominio
-- `src/utils`: utilidades
 
-## MVP incluido
-- Login/registro por email
-- Publicación de casos con wizard (fotos + GPS + datos básicos)
-- Feed de casos recientes (últimos 7 días) con filtros base
-- Mapa con pines por urgencia/estado
-- Detalle de caso con comentarios, acciones y reportes
-- Flujo “Perdí mi perro” con ubicación aproximada en UI
-- Ajustes con permisos para notificaciones
+- `/index.html`: portada con módulos.
+- `/cobranzas/index.html`: tablero de cobranzas.
+- `/css/styles.css`: estilos globales (bordó/blanco/grises).
+- `/js/app.js`: utilidades globales (CSV, fechas, moneda).
+- `/cobranzas/cobranzas.js`: lógica de KPIs, gráficos, filtros y alertas.
+- `/data/invoices.csv`: archivo de datos activo que consume el módulo.
+- `/data/invoices.sample.csv`: ejemplo de plantilla con datos de muestra.
 
-## Assets de Expo (ícono/splash)
-- El proyecto referencia estos archivos en `app.json`:
-  - `assets/icon.png`
-  - `assets/splash.png`
-  - `assets/adaptive-icon.png`
-  - `assets/favicon.png`
-  - `assets/notification-icon.png`
-- **No se versionan en este repositorio**. Subilos manualmente en `assets/` antes de correr `npx expo start`.
+## Flujo de datos desde Excel
+
+1. Preparar un archivo de Excel con una pestaña llamada **`DATA_COBRANZAS`**.
+2. La fila 1 debe contener los headers exactos:
+   - `cliente,nro_factura,periodo,emision,vencimiento,importe,pagado`
+3. Verificar formato sugerido:
+   - Fechas: `YYYY-MM-DD` (recomendado)
+   - Montos: numéricos, sin símbolo `$`
+4. Exportar la pestaña **DATA_COBRANZAS** como CSV (delimitado por coma).
+5. Reemplazar el archivo:
+   - `/data/invoices.csv`
+
+> El tablero se actualiza leyendo ese CSV. No requiere backend ni base de datos.
+
+## Ejecutar localmente
+
+Desde la raíz del proyecto:
+
+```bash
+python -m http.server 8000
+```
+
+Luego abrir:
+
+- `http://localhost:8000/`
+- `http://localhost:8000/cobranzas/`
+
+## Publicación recomendada (PC oficina + Cloudflare Tunnel)
+
+- Mantener la PC encendida y conectada a internet.
+- Servir esta carpeta por HTTP local (por ejemplo puerto 8000).
+- Apuntar Cloudflare Tunnel al servicio local.
+- Configurar DNS para que `tablero.sanjorgelimpieza.com.ar` resuelva al tunnel.
+
+## Notas
+
+- Todo funciona con rutas relativas para navegación entre portada y módulo.
+- No se usan imágenes binarias ni frameworks.
+- Los gráficos se renderizan con Chart.js desde CDN.

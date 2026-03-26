@@ -1,8 +1,18 @@
 (function () {
   const { formatMoney, formatDate, parseDate, daysBetween, toNumber } = window.SJUtils;
-  const STORAGE_INVOICES = "sj_proveedores_facturas_v1";
-  const STORAGE_SUPPLIERS = "sj_proveedores_datos_v1";
+  const STORAGE_INVOICES = "sj_proveedores_facturas_v2";
+  const STORAGE_SUPPLIERS = "sj_proveedores_datos_v2";
   const today = new Date();
+
+  const COST_CENTERS = ["ALQUILERES", "PROVEEDORES_FIJOS", "VARIABLES", "SERVICIOS", "OTROS"];
+
+  const COST_CENTER_LABELS = {
+    ALQUILERES: "Alquileres",
+    PROVEEDORES_FIJOS: "Proveedores fijos",
+    VARIABLES: "Variables",
+    SERVICIOS: "Servicios",
+    OTROS: "Otros",
+  };
 
   let rows = [];
   let suppliers = [];
@@ -18,10 +28,10 @@
     invoiceFormSection: document.getElementById("invoiceFormSection"),
     toggleSuppliersPanel: document.getElementById("toggleSuppliersPanel"),
     suppliersPanel: document.getElementById("suppliersPanel"),
+    loadSampleData: document.getElementById("loadSampleData"),
     toggleSupplierForm: document.getElementById("toggleSupplierForm"),
     supplierForm: document.getElementById("supplierForm"),
     suppliersBody: document.getElementById("suppliersBody"),
-    supplierNames: document.getElementById("supplierNames"),
 
     form: document.getElementById("invoiceForm"),
     fProveedor: document.getElementById("fProveedor"),
@@ -35,10 +45,12 @@
     sNombre: document.getElementById("sNombre"),
     sCuit: document.getElementById("sCuit"),
     sCbu: document.getElementById("sCbu"),
+    sCentroCostos: document.getElementById("sCentroCostos"),
     sResponsable: document.getElementById("sResponsable"),
     sContacto: document.getElementById("sContacto"),
 
     filterSupplier: document.getElementById("filterSupplier"),
+    filterCostCenter: document.getElementById("filterCostCenter"),
     filterStatus: document.getElementById("filterStatus"),
     filterOverdue: document.getElementById("filterOverdue"),
     filterSearch: document.getElementById("filterSearch"),
@@ -51,6 +63,7 @@
   function init() {
     rows = loadInvoices();
     suppliers = loadSuppliers();
+    migrateInvoiceSupplierData();
     bindEvents();
     refreshAll();
   }
@@ -65,10 +78,43 @@
       }
     }
 
+    const legacyRaw = localStorage.getItem("sj_proveedores_facturas_v1");
+    if (legacyRaw) {
+      try {
+        return JSON.parse(legacyRaw).map(normalizeInvoice);
+      } catch (_err) {
+        localStorage.removeItem("sj_proveedores_facturas_v1");
+      }
+    }
+
     const seed = [
-      { proveedor: "LimpioQuim", nro_factura: "P-1001", concepto: "Insumos enero", emision: "2026-02-01", vencimiento: "2026-02-25", importe: 420000, pagado: 180000 },
-      { proveedor: "Textil Norte", nro_factura: "P-1002", concepto: "Uniformes", emision: "2026-02-10", vencimiento: "2026-03-15", importe: 260000, pagado: 0 },
-      { proveedor: "Eco Bolsas", nro_factura: "P-1003", concepto: "Bolsas residuos", emision: "2026-03-02", vencimiento: "2026-03-30", importe: 180000, pagado: 180000 },
+      {
+        proveedor: "LimpioQuim",
+        nro_factura: "P-1001",
+        concepto: "Insumos enero",
+        emision: "2026-02-01",
+        vencimiento: "2026-02-25",
+        importe: 420000,
+        pagado: 180000,
+      },
+      {
+        proveedor: "Textil Norte",
+        nro_factura: "P-1002",
+        concepto: "Uniformes",
+        emision: "2026-02-10",
+        vencimiento: "2026-03-15",
+        importe: 260000,
+        pagado: 0,
+      },
+      {
+        proveedor: "Eco Bolsas",
+        nro_factura: "P-1003",
+        concepto: "Bolsas residuos",
+        emision: "2026-03-02",
+        vencimiento: "2026-03-30",
+        importe: 180000,
+        pagado: 180000,
+      },
     ];
 
     const normalized = seed.map(normalizeInvoice);
@@ -80,19 +126,50 @@
     const raw = localStorage.getItem(STORAGE_SUPPLIERS);
     if (raw) {
       try {
-        return JSON.parse(raw);
+        return JSON.parse(raw).map(normalizeSupplier);
       } catch (_err) {
         localStorage.removeItem(STORAGE_SUPPLIERS);
       }
     }
 
+    const legacyRaw = localStorage.getItem("sj_proveedores_datos_v1");
+    if (legacyRaw) {
+      try {
+        return JSON.parse(legacyRaw).map(normalizeSupplier);
+      } catch (_err) {
+        localStorage.removeItem("sj_proveedores_datos_v1");
+      }
+    }
+
     const seed = [
-      { nombre: "LimpioQuim", cuit: "30-71234567-8", cbu: "2850590940090418135201", responsable: "Marina López", contacto: "marina@limpioquim.com / 11-5566-7788" },
-      { nombre: "Textil Norte", cuit: "30-70111222-3", cbu: "0720169720000003456789", responsable: "Iván Torres", contacto: "ventas@textilnorte.com" },
+      {
+        nombre: "LimpioQuim",
+        cuit: "30-71234567-8",
+        cbu: "2850590940090418135201",
+        centro_costos: "PROVEEDORES_FIJOS",
+        responsable: "Marina López",
+        contacto: "marina@limpioquim.com / 11-5566-7788",
+      },
+      {
+        nombre: "Textil Norte",
+        cuit: "30-70111222-3",
+        cbu: "0720169720000003456789",
+        centro_costos: "VARIABLES",
+        responsable: "Iván Torres",
+        contacto: "ventas@textilnorte.com",
+      },
+      {
+        nombre: "Eco Bolsas",
+        cuit: "30-74444555-6",
+        cbu: "1430001712345678901245",
+        centro_costos: "SERVICIOS",
+        responsable: "Noelia Díaz",
+        contacto: "administracion@ecobolsas.com",
+      },
     ];
 
     saveSuppliers(seed);
-    return seed;
+    return seed.map(normalizeSupplier);
   }
 
   function bindEvents() {
@@ -108,11 +185,24 @@
       elements.supplierForm.classList.toggle("hidden");
     });
 
+    elements.loadSampleData.addEventListener("click", () => {
+      loadExamples();
+    });
+
     elements.form.addEventListener("submit", (e) => {
       e.preventDefault();
+      const supplier = getSupplierByName(elements.fProveedor.value.trim());
+      if (!supplier) {
+        alert("Primero seleccioná un proveedor válido desde la lista.");
+        return;
+      }
+
       rows.unshift(
         normalizeInvoice({
-          proveedor: elements.fProveedor.value,
+          proveedor: supplier.nombre,
+          cuit: supplier.cuit,
+          cbu: supplier.cbu,
+          centro_costos: supplier.centro_costos,
           nro_factura: elements.fFactura.value,
           concepto: elements.fConcepto.value,
           emision: elements.fEmision.value,
@@ -121,6 +211,7 @@
           pagado: elements.fPagado.value,
         }),
       );
+
       saveInvoices(rows);
       elements.form.reset();
       elements.fPagado.value = 0;
@@ -129,27 +220,40 @@
 
     elements.supplierForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      suppliers.unshift({
-        nombre: elements.sNombre.value.trim(),
-        cuit: elements.sCuit.value.trim(),
-        cbu: elements.sCbu.value.trim(),
-        responsable: elements.sResponsable.value.trim(),
-        contacto: elements.sContacto.value.trim(),
+
+      const nextSupplier = normalizeSupplier({
+        nombre: elements.sNombre.value,
+        cuit: elements.sCuit.value,
+        cbu: elements.sCbu.value,
+        centro_costos: elements.sCentroCostos.value,
+        responsable: elements.sResponsable.value,
+        contacto: elements.sContacto.value,
       });
+
+      const existingIndex = suppliers.findIndex((s) => s.nombre.toLowerCase() === nextSupplier.nombre.toLowerCase());
+      if (existingIndex >= 0) suppliers[existingIndex] = nextSupplier;
+      else suppliers.unshift(nextSupplier);
+
       saveSuppliers(suppliers);
       elements.supplierForm.reset();
       elements.supplierForm.classList.add("hidden");
+
+      migrateInvoiceSupplierData();
+      saveInvoices(rows);
       refreshAll();
     });
 
-    [elements.filterSupplier, elements.filterStatus, elements.filterOverdue].forEach((el) =>
+    [elements.filterSupplier, elements.filterCostCenter, elements.filterStatus, elements.filterOverdue].forEach((el) =>
       el.addEventListener("change", refreshAll),
     );
+
     elements.filterSearch.addEventListener("input", refreshAll);
 
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.addEventListener("click", () => {
-        const key = th.dataset.sort === "emision" ? "emisionDate" : th.dataset.sort === "vencimiento" ? "vencDate" : th.dataset.sort;
+        const key =
+          th.dataset.sort === "emision" ? "emisionDate" : th.dataset.sort === "vencimiento" ? "vencDate" : th.dataset.sort;
+
         if (sortBy === key) sortDir = sortDir === "asc" ? "desc" : "asc";
         else {
           sortBy = key;
@@ -162,8 +266,8 @@
     elements.tableBody.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-action]");
       if (!btn) return;
-      const id = btn.dataset.id;
-      const item = rows.find((r) => r.id === id);
+
+      const item = rows.find((r) => r.id === btn.dataset.id);
       if (!item) return;
 
       if (btn.dataset.action === "pay") {
@@ -171,13 +275,134 @@
       } else if (btn.dataset.action === "pending") {
         item.pagado = 0;
       } else if (btn.dataset.action === "delete") {
-        rows = rows.filter((r) => r.id !== id);
+        rows = rows.filter((r) => r.id !== item.id);
       }
 
       rows = rows.map(normalizeInvoice);
       saveInvoices(rows);
       refreshAll();
     });
+  }
+
+  function refreshAll() {
+    renderSupplierData();
+    fillSupplierSelect();
+    fillSupplierFilter();
+    applyFilters();
+    renderKPIs();
+    renderCharts();
+    renderTable();
+  }
+
+  function migrateInvoiceSupplierData() {
+    rows = rows.map((invoice) => {
+      const supplier = getSupplierByName(invoice.proveedor);
+      if (!supplier) return normalizeInvoice(invoice);
+      return normalizeInvoice({ ...invoice, cuit: supplier.cuit, cbu: supplier.cbu, centro_costos: supplier.centro_costos });
+    });
+  }
+
+  function loadExamples() {
+    const sampleSuppliers = [
+      {
+        nombre: "Alquileres Río",
+        cuit: "30-68888999-1",
+        cbu: "2850590940012345678901",
+        centro_costos: "ALQUILERES",
+        responsable: "Paula Rojas",
+        contacto: "administracion@alquileresrio.com",
+      },
+      {
+        nombre: "Servicios Eléctricos Delta",
+        cuit: "30-65555777-2",
+        cbu: "0720169720000009876543",
+        centro_costos: "SERVICIOS",
+        responsable: "Sergio Ponce",
+        contacto: "sergio@deltaelectric.com",
+      },
+      {
+        nombre: "Insumos Variables SRL",
+        cuit: "30-73333444-5",
+        cbu: "1430001712345678909876",
+        centro_costos: "VARIABLES",
+        responsable: "Gisela León",
+        contacto: "compras@insumosvariables.com",
+      },
+      {
+        nombre: "Proveedores Fijos Centro",
+        cuit: "30-79999111-3",
+        cbu: "0720169700000001234567",
+        centro_costos: "PROVEEDORES_FIJOS",
+        responsable: "Damián Vigo",
+        contacto: "cobranzas@pfcentro.com",
+      },
+    ].map(normalizeSupplier);
+
+    const byName = new Map(suppliers.map((s) => [s.nombre.toLowerCase(), s]));
+    sampleSuppliers.forEach((supplier) => {
+      if (!byName.has(supplier.nombre.toLowerCase())) suppliers.push(supplier);
+    });
+    saveSuppliers(suppliers);
+
+    const sampleInvoices = [
+      {
+        proveedor: "Alquileres Río",
+        nro_factura: "ALQ-2001",
+        concepto: "Alquiler depósito central",
+        emision: "2026-03-01",
+        vencimiento: "2026-03-28",
+        importe: 980000,
+        pagado: 0,
+      },
+      {
+        proveedor: "Servicios Eléctricos Delta",
+        nro_factura: "SER-4402",
+        concepto: "Mantenimiento tableros",
+        emision: "2026-03-05",
+        vencimiento: "2026-04-05",
+        importe: 325000,
+        pagado: 100000,
+      },
+      {
+        proveedor: "Insumos Variables SRL",
+        nro_factura: "VAR-1199",
+        concepto: "Compra bolsas y guantes",
+        emision: "2026-03-10",
+        vencimiento: "2026-04-10",
+        importe: 240500,
+        pagado: 0,
+      },
+      {
+        proveedor: "Proveedores Fijos Centro",
+        nro_factura: "PF-5510",
+        concepto: "Abono mensual limpieza técnica",
+        emision: "2026-03-12",
+        vencimiento: "2026-03-27",
+        importe: 410000,
+        pagado: 410000,
+      },
+    ];
+
+    const existingInvoiceKeys = new Set(rows.map((row) => `${row.proveedor.toLowerCase()}|${row.nro_factura.toLowerCase()}`));
+
+    sampleInvoices.forEach((invoice) => {
+      const supplier = getSupplierByName(invoice.proveedor);
+      const key = `${invoice.proveedor.toLowerCase()}|${invoice.nro_factura.toLowerCase()}`;
+      if (!supplier || existingInvoiceKeys.has(key)) return;
+
+      rows.push(
+        normalizeInvoice({
+          ...invoice,
+          cuit: supplier.cuit,
+          cbu: supplier.cbu,
+          centro_costos: supplier.centro_costos,
+        }),
+      );
+    });
+
+    migrateInvoiceSupplierData();
+    saveInvoices(rows);
+    refreshAll();
   }
 
   function normalizeInvoice(row) {
@@ -191,7 +416,10 @@
 
     return {
       id: row.id || crypto.randomUUID(),
-      proveedor: row.proveedor || "(Sin proveedor)",
+      proveedor: (row.proveedor || "").trim() || "(Sin proveedor)",
+      cuit: (row.cuit || "").trim(),
+      cbu: (row.cbu || "").trim(),
+      centro_costos: normalizeCostCenter(row.centro_costos),
       nro_factura: row.nro_factura || "-",
       concepto: row.concepto || "",
       emision: row.emision || "",
@@ -206,34 +434,65 @@
     };
   }
 
-  function refreshAll() {
-    renderSupplierData();
-    fillSupplierFilter();
-    applyFilters();
-    renderKPIs();
-    renderCharts();
-    renderTable();
+  function normalizeSupplier(supplier) {
+    return {
+      nombre: (supplier.nombre || "").trim(),
+      cuit: (supplier.cuit || "").trim(),
+      cbu: (supplier.cbu || "").trim(),
+      centro_costos: normalizeCostCenter(supplier.centro_costos),
+      responsable: (supplier.responsable || "").trim(),
+      contacto: (supplier.contacto || "").trim(),
+    };
+  }
+
+  function normalizeCostCenter(value) {
+    const normalized = String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "_");
+
+    if (COST_CENTERS.includes(normalized)) return normalized;
+    return "OTROS";
   }
 
   function renderSupplierData() {
     elements.suppliersBody.innerHTML = suppliers.length
       ? suppliers
           .map(
-            (s) => `<tr><td>${s.nombre}</td><td>${s.cuit}</td><td>${s.cbu}</td><td>${s.responsable}</td><td>${s.contacto}</td></tr>`,
+            (s) =>
+              `<tr><td>${escapeHtml(s.nombre)}</td><td>${escapeHtml(s.cuit)}</td><td>${escapeHtml(s.cbu)}</td><td>${escapeHtml(costCenterLabel(s.centro_costos))}</td><td>${escapeHtml(s.responsable)}</td><td>${escapeHtml(s.contacto)}</td></tr>`,
           )
           .join("")
-      : '<tr><td colspan="5" style="color:#6b7280">Sin proveedores cargados.</td></tr>';
+      : '<tr><td colspan="6" style="color:#6b7280">Sin proveedores cargados.</td></tr>';
+  }
 
-    elements.supplierNames.innerHTML = suppliers
-      .map((s) => `<option value="${s.nombre}"></option>`)
-      .join("");
+  function fillSupplierSelect() {
+    const current = elements.fProveedor.value;
+    elements.fProveedor.innerHTML = '<option value="">Seleccionar proveedor...</option>';
+
+    suppliers
+      .slice()
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      .forEach((supplier) => {
+        const option = document.createElement("option");
+        option.value = supplier.nombre;
+        option.textContent = `${supplier.nombre} · ${costCenterLabel(supplier.centro_costos)}`;
+        elements.fProveedor.appendChild(option);
+      });
+
+    if (getSupplierByName(current)) {
+      elements.fProveedor.value = current;
+    }
   }
 
   function fillSupplierFilter() {
-    const current = elements.filterSupplier.value;
+    const currentSupplier = elements.filterSupplier.value;
+    const currentCostCenter = elements.filterCostCenter.value;
+
     elements.filterSupplier.innerHTML = '<option value="">Todos</option>';
 
     [...new Set(rows.map((r) => r.proveedor))]
+      .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, "es"))
       .forEach((supplier) => {
         const option = document.createElement("option");
@@ -242,21 +501,29 @@
         elements.filterSupplier.appendChild(option);
       });
 
-    elements.filterSupplier.value = current;
+    elements.filterSupplier.value = currentSupplier;
+    elements.filterCostCenter.value = currentCostCenter;
   }
 
   function applyFilters() {
     const supplier = elements.filterSupplier.value;
+    const costCenter = elements.filterCostCenter.value;
     const status = elements.filterStatus.value;
     const overdue = elements.filterOverdue.value;
     const search = elements.filterSearch.value.trim().toLowerCase();
 
     filtered = rows.filter((r) => {
       if (supplier && r.proveedor !== supplier) return false;
+      if (costCenter && r.centro_costos !== costCenter) return false;
       if (status && r.estado !== status) return false;
       if (overdue === "SI" && r.dias_vencido <= 0) return false;
       if (overdue === "NO" && r.dias_vencido > 0) return false;
-      if (search && ![r.proveedor, r.nro_factura, r.concepto].join(" ").toLowerCase().includes(search)) return false;
+
+      if (search) {
+        const blob = [r.proveedor, r.nro_factura, r.concepto, r.cuit, r.cbu, costCenterLabel(r.centro_costos)].join(" ").toLowerCase();
+        if (!blob.includes(search)) return false;
+      }
+
       return true;
     });
   }
@@ -319,12 +586,20 @@
 
   function renderTable() {
     const sorted = [...filtered].sort((a, b) => compare(a[sortBy], b[sortBy], sortDir));
+    if (!sorted.length) {
+      elements.tableBody.innerHTML = '<tr><td colspan="14" style="color:#6b7280">No hay resultados para el filtro seleccionado.</td></tr>';
+      return;
+    }
+
     elements.tableBody.innerHTML = sorted
       .map(
         (r) => `<tr>
-      <td>${r.proveedor}</td>
-      <td>${r.nro_factura}</td>
-      <td>${r.concepto || "-"}</td>
+      <td>${escapeHtml(r.proveedor)}</td>
+      <td>${escapeHtml(r.cuit || "-")}</td>
+      <td>${escapeHtml(r.cbu || "-")}</td>
+      <td>${escapeHtml(costCenterLabel(r.centro_costos))}</td>
+      <td>${escapeHtml(r.nro_factura)}</td>
+      <td>${escapeHtml(r.concepto || "-")}</td>
       <td>${formatDate(r.emisionDate)}</td>
       <td>${formatDate(r.vencDate)}</td>
       <td>${formatMoney(r.importe)}</td>
@@ -346,7 +621,7 @@
 
   function statePill(status) {
     const cls = status === "PAGADO" ? "status-paid" : status === "PARCIAL" ? "status-partial" : "status-pending";
-    return `<span class="status-pill ${cls}">${status}</span>`;
+    return `<span class="status-pill ${cls}">${escapeHtml(status)}</span>`;
   }
 
   function sameMonth(date) {
@@ -366,6 +641,24 @@
 
   function sum(list, fn) {
     return list.reduce((acc, item) => acc + fn(item), 0);
+  }
+
+  function getSupplierByName(name) {
+    const normalized = String(name || "").trim().toLowerCase();
+    return suppliers.find((s) => s.nombre.toLowerCase() === normalized) || null;
+  }
+
+  function costCenterLabel(key) {
+    return COST_CENTER_LABELS[key] || COST_CENTER_LABELS.OTROS;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function saveInvoices(data) {

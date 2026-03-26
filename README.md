@@ -26,9 +26,13 @@ Flujo recomendado:
 
 En `/proveedores/` podés:
 - Cargar facturas manualmente desde el botón **Cargar Factura**.
-- Filtrar, ordenar, marcar como pagada, volver a **Pendiente** y eliminar.
+- Seleccionar **solo proveedores existentes** al cargar una factura (evita errores de tipeo).
+- Completar automáticamente **CUIT, CBU y Centro de Costos** según el proveedor elegido.
+- Filtrar por proveedor, estado, vencidas y **Centro de Costos** (Alquileres, Proveedores fijos, Variables, Servicios, Otros).
+- Marcar facturas como pagadas, volver a **Pendiente** y eliminar.
 - Ver KPIs y gráficos automáticamente.
-- Gestionar **Datos de proveedores** (CUIT, CBU, responsable y contacto) con botón **Agregar proveedor**.
+- Gestionar **Datos de proveedores** (CUIT, CBU, Centro de Costos, responsable y contacto) con botón **Agregar proveedor**.
+- Usar **Cargar ejemplos** para sumar proveedores/facturas de distintos rubros (alquileres, servicios, variables y fijos) sin pisar tus datos existentes.
 
 > Los datos se guardan en `localStorage` del navegador de esa PC.
 > Si se borra caché/datos del navegador, se pierden los registros.

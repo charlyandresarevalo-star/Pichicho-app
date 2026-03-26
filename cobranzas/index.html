@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cobranzas — Tablero General</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="header">
+        <h1>San Jorge — Módulo Cobranzas</h1>
+        <p class="subtitle">Tablero de facturación y cobranzas (sin backend)</p>
+      </header>
+
+      <main class="container">
+        <div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:center">
+          <a class="link-btn" href="../index.html">← Volver a portada</a>
+          <div class="action-row">
+            <button id="toggleManualForm" class="primary-btn" type="button">Agregar factura</button>
+            <button id="exportExcelBtn" class="secondary-btn" type="button">Exportar Excel</button>
+          </div>
+        </div>
+
+        <section id="manualFormSection" class="card hidden" style="margin-top: 1rem">
+          <h3>Carga manual de factura</h3>
+          <form id="manualInvoiceForm" class="toolbar">
+            <label>Cliente <input id="mCliente" required /></label>
+            <label>Nro factura <input id="mNroFactura" required /></label>
+            <label>Periodo <input id="mPeriodo" placeholder="MMYYYY o texto" /></label>
+            <label>Emisión <input id="mEmision" type="date" required /></label>
+            <label>
+              Vencimiento automático
+              <select id="mAutoDueDays">
+                <option value="">Manual</option>
+                <option value="15">15 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+              </select>
+            </label>
+            <label>Vencimiento <input id="mVencimiento" type="date" required /></label>
+            <label>Importe <input id="mImporte" type="number" min="0" step="0.01" required /></label>
+            <label>Pagado <input id="mPagado" type="number" min="0" step="0.01" value="0" /></label>
+            <label>
+              Estado
+              <select id="mEstado">
+                <option value="">Automático</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="COBRADO">Cobrado</option>
+              </select>
+            </label>
+            <button class="primary-btn" type="submit">Guardar factura</button>
+          </form>
+          <p class="kpi-caption">La carga manual se guarda en esta PC y se suma al histórico del CSV sin reemplazarlo.</p>
+        </section>
+
+        <section class="grid kpi-grid" id="kpiGrid" style="margin-top: 1rem"></section>
+
+        <section class="grid charts-grid" style="margin-top: 1rem">
+          <article class="card chart-box"><canvas id="agingChart"></canvas></article>
+          <article class="card chart-box"><canvas id="topClientsChart"></canvas></article>
+          <article class="card chart-box"><canvas id="monthChart"></canvas></article>
+        </section>
+
+        <section class="grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr 1fr">
+          <article class="card">
+            <h3>Clientes con deuda +90</h3>
+            <ul class="alert-list" id="alert90"></ul>
+          </article>
+          <article class="card">
+            <h3>Vencimientos próximos (7 días)</h3>
+            <ul class="alert-list" id="alertUpcoming"></ul>
+          </article>
+          <article class="card">
+            <h3>Facturas sin período</h3>
+            <ul class="alert-list" id="alertNoPeriod"></ul>
+          </article>
+        </section>
+
+        <section class="card" style="margin-top: 1rem">
+          <h3>Facturas</h3>
+          <div class="toolbar">
+            <label>
+              Cliente
+              <select id="filterClient"><option value="">Todos</option></select>
+            </label>
+            <label>
+              Estado
+              <select id="filterStatus">
+                <option value="">Todos</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="COBRADO">Cobrado</option>
+              </select>
+            </label>
+            <label>
+              ¿Sólo vencidas?
+              <select id="filterOverdue">
+                <option value="">Todas</option>
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </label>
+            <label style="flex: 1">
+              Buscar
+              <input id="filterSearch" placeholder="Cliente, factura, periodo..." />
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="cliente">Cliente</th>
+                  <th data-sort="nro_factura">Nro factura</th>
+                  <th data-sort="periodo">Periodo</th>
+                  <th data-sort="emision">Emisión</th>
+                  <th data-sort="vencimiento">Vencimiento</th>
+                  <th data-sort="importe">Importe</th>
+                  <th data-sort="pagado">Pagado</th>
+                  <th data-sort="saldo">Saldo</th>
+                  <th data-sort="estado">Estado</th>
+                  <th data-sort="dias_vencido">Días vencido</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">Archivo base: /data/invoices.csv · Carga manual guardada en navegador</footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="../js/app.js"></script>
+    <script src="./cobranzas.js"></script>
+  </body>
+</html>

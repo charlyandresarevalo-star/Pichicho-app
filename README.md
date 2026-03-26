@@ -27,6 +27,8 @@ Además, en `/cobranzas/` podés:
 - Usar **Vencimiento automático** de 15 / 30 / 60 días desde la fecha de emisión.
 - Exportar un archivo **Excel** con todas las facturas cargadas (CSV + manuales) desde el botón **Exportar Excel**.
 - Modificar manualmente el **Estado** en la tabla con desplegable: `Pendiente`, `Cobrado`, `Parcial`, `Anulada` (con color visual por estado).
+- Completar **Fecha de pago** manualmente desde la tabla, con columnas `Pagado` y `Saldo` ubicadas al final.
+- Ajustar el ancho de columnas manualmente arrastrando el borde derecho del encabezado.
 
 ## Proveedores (carga manual)
 

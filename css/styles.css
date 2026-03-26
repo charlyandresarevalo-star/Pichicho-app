@@ -188,6 +188,7 @@ th {
   cursor: pointer;
   position: sticky;
   top: 0;
+  min-width: 120px;
 }
 
 th:hover {
@@ -318,4 +319,22 @@ th:hover {
 .state-select.state-cancelled {
   background: #e5e7eb;
   color: #374151;
+}
+
+.payment-date-input {
+  min-width: 140px;
+}
+
+.resizable-col {
+  position: relative;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
 }

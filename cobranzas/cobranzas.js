@@ -4,13 +4,15 @@
   const DATA_URL = "../data/invoices.csv";
   const STORAGE_MANUAL_INVOICES = "sj_cobranzas_manual_v1";
   const STORAGE_STATUS_OVERRIDES = "sj_cobranzas_estado_overrides_v1";
+  const STORAGE_PAYMENT_DATE_OVERRIDES = "sj_cobranzas_fecha_pago_overrides_v1";
   const today = startOfDay(new Date());
 
   let rows = [];
-  let statusOverrides = {};
   let filtered = [];
   let sortBy = "vencDate";
   let sortDir = "asc";
+  let statusOverrides = {};
+  let paymentDateOverrides = {};
 
   let agingChart;
   let topClientsChart;
@@ -67,6 +69,8 @@
     vencimiento: "vencDate",
     fecha_vencimiento: "vencDate",
     vencDate: "vencDate",
+    fecha_pago: "fechaPagoDate",
+    fechaPago: "fechaPagoDate",
     importe: "importe",
     importe_total: "importe",
     pagado: "pagado",
@@ -87,16 +91,17 @@
       const baseRows = normalizeRows(parseCsv(csvText), { source: "csv" });
       const manualRows = loadManualInvoices();
       statusOverrides = loadStatusOverrides();
+      paymentDateOverrides = loadPaymentDateOverrides();
+
       rows = [...manualRows, ...baseRows];
       applyStoredStateOverrides();
+      applyStoredPaymentDateOverrides();
 
       fillFilters();
       bindEvents();
       applyFiltersAndRender();
     } catch (error) {
-      if (elements.tableBody) {
-        elements.tableBody.innerHTML = `<tr><td colspan="10">Error cargando datos: ${error.message}</td></tr>`;
-      }
+      elements.tableBody.innerHTML = `<tr><td colspan="12">Error cargando datos: ${error.message}</td></tr>`;
     }
   }
 
@@ -228,14 +233,13 @@
 
       const emisionRaw = item.fecha_emision || item.emision || "";
       const vencimientoRaw = item.fecha_vencimiento || item.vencimiento || "";
+      const fechaPagoRaw = item.fecha_pago || item.fechaPago || "";
       const emisionDate = parseLocalDate(emisionRaw);
       const vencDate = parseLocalDate(vencimientoRaw);
+      const fechaPagoDate = parseLocalDate(fechaPagoRaw);
       const diasVencido = vencDate && saldo > 0 ? Math.max(daysBetween(vencDate, today), 0) : 0;
 
-      let estado = String(item.estado || "").toUpperCase().trim();
-      if (estado === "PAGADA" || estado === "PAGADO") estado = "COBRADO";
-      estado = normalizeState(estado);
-
+      let estado = normalizeState(item.estado);
       if (!estado) {
         if (saldo <= 0) estado = "COBRADO";
         else if (pagado > 0 || retenido > 0) estado = "PARCIAL";
@@ -246,15 +250,7 @@
       const periodo = /^\d{5}$/.test(periodoRaw) ? `0${periodoRaw}` : periodoRaw;
 
       return {
-        id:
-          item.id ||
-          buildInvoiceId(
-            item.cliente || "",
-            item.nro_factura || "",
-            emisionRaw,
-            vencimientoRaw,
-            importe,
-          ),
+        id: item.id || buildInvoiceId(item.cliente || "", item.nro_factura || "", emisionRaw, vencimientoRaw, importe),
         source,
         cliente: item.cliente || "(Sin cliente)",
         nro_factura: item.nro_factura || "-",
@@ -263,6 +259,8 @@
         emisionDate,
         vencimiento: vencimientoRaw,
         vencDate,
+        fecha_pago: fechaPagoRaw,
+        fechaPagoDate,
         importe,
         pagado,
         retenido,
@@ -279,8 +277,7 @@
 
     try {
       const data = JSON.parse(raw);
-      if (!Array.isArray(data)) return [];
-      return normalizeRows(data, { source: "manual" });
+      return Array.isArray(data) ? normalizeRows(data, { source: "manual" }) : [];
     } catch (_error) {
       localStorage.removeItem(STORAGE_MANUAL_INVOICES);
       return [];
@@ -300,24 +297,44 @@
     }
   }
 
+  function loadPaymentDateOverrides() {
+    const raw = localStorage.getItem(STORAGE_PAYMENT_DATE_OVERRIDES);
+    if (!raw) return {};
+
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (_error) {
+      localStorage.removeItem(STORAGE_PAYMENT_DATE_OVERRIDES);
+      return {};
+    }
+  }
+
   function saveManualInvoices() {
-    const manualRows = rows.filter((row) => row.source === "manual").map((row) => ({
-      id: row.id,
-      cliente: row.cliente,
-      nro_factura: row.nro_factura,
-      periodo: row.periodo,
-      emision: row.emision,
-      vencimiento: row.vencimiento,
-      importe: row.importe,
-      pagado: row.pagado,
-      estado: row.estado,
-    }));
+    const manualRows = rows
+      .filter((row) => row.source === "manual")
+      .map((row) => ({
+        id: row.id,
+        cliente: row.cliente,
+        nro_factura: row.nro_factura,
+        periodo: row.periodo,
+        emision: row.emision,
+        vencimiento: row.vencimiento,
+        fecha_pago: row.fecha_pago,
+        importe: row.importe,
+        pagado: row.pagado,
+        estado: row.estado,
+      }));
 
     localStorage.setItem(STORAGE_MANUAL_INVOICES, JSON.stringify(manualRows));
   }
 
   function saveStatusOverrides() {
     localStorage.setItem(STORAGE_STATUS_OVERRIDES, JSON.stringify(statusOverrides));
+  }
+
+  function savePaymentDateOverrides() {
+    localStorage.setItem(STORAGE_PAYMENT_DATE_OVERRIDES, JSON.stringify(paymentDateOverrides));
   }
 
   function applyStoredStateOverrides() {
@@ -328,73 +345,55 @@
     });
   }
 
-  function fillFilters() {
-    if (!elements.filterClient) return;
+  function applyStoredPaymentDateOverrides() {
+    rows = rows.map((row) => {
+      const override = String(paymentDateOverrides[row.id] || "").trim();
+      if (!override) return row;
+      return { ...row, fecha_pago: override, fechaPagoDate: parseLocalDate(override) };
+    });
+  }
 
+  function fillFilters() {
     const selectedClient = elements.filterClient.value;
     elements.filterClient.innerHTML = '<option value="">Todos</option>';
 
-    const clients = [...new Set(rows.map((r) => r.cliente).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b, "es"),
-    );
-
-    clients.forEach((client) => {
-      const option = document.createElement("option");
-      option.value = client;
-      option.textContent = client;
-      elements.filterClient.appendChild(option);
-    });
+    [...new Set(rows.map((r) => r.cliente).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "es"))
+      .forEach((client) => {
+        const option = document.createElement("option");
+        option.value = client;
+        option.textContent = client;
+        elements.filterClient.appendChild(option);
+      });
 
     elements.filterClient.value = selectedClient;
   }
 
   function bindEvents() {
-    [
-      elements.filterClient,
-      elements.filterStatus,
-      elements.filterOverdue,
-      elements.filterEmissionFrom,
-      elements.filterEmissionTo,
-      elements.filterDueFrom,
-      elements.filterDueTo,
-    ]
+    [elements.filterClient, elements.filterStatus, elements.filterOverdue, elements.filterEmissionFrom, elements.filterEmissionTo, elements.filterDueFrom, elements.filterDueTo]
       .filter(Boolean)
       .forEach((el) => {
         el.addEventListener("change", applyFiltersAndRender);
         el.addEventListener("input", applyFiltersAndRender);
       });
 
-    if (elements.filterSearch) {
-      elements.filterSearch.addEventListener("input", applyFiltersAndRender);
-    }
+    elements.filterSearch.addEventListener("input", applyFiltersAndRender);
 
-    if (elements.toggleManualForm) {
-      elements.toggleManualForm.addEventListener("click", () => {
-        elements.manualFormSection.classList.toggle("hidden");
-      });
-    }
+    elements.toggleManualForm.addEventListener("click", () => {
+      elements.manualFormSection.classList.toggle("hidden");
+    });
 
-    if (elements.mAutoDueDays) {
-      elements.mAutoDueDays.addEventListener("change", applyAutomaticDueDate);
-      elements.mEmision.addEventListener("change", applyAutomaticDueDate);
-    }
+    elements.mAutoDueDays.addEventListener("change", applyAutomaticDueDate);
+    elements.mEmision.addEventListener("change", applyAutomaticDueDate);
 
-    if (elements.manualInvoiceForm) {
-      elements.manualInvoiceForm.addEventListener("submit", handleManualInvoiceSubmit);
-    }
-
-    if (elements.exportExcelBtn) {
-      elements.exportExcelBtn.addEventListener("click", exportInvoicesToExcel);
-    }
+    elements.manualInvoiceForm.addEventListener("submit", handleManualInvoiceSubmit);
+    elements.exportExcelBtn.addEventListener("click", exportInvoicesToExcel);
 
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.addEventListener("click", () => {
-        const rawKey = th.dataset.sort;
-        const key = resolveSortKey(rawKey);
-
-        if (sortBy === key) {
-          sortDir = sortDir === "asc" ? "desc" : "asc";
-        } else {
+        const key = resolveSortKey(th.dataset.sort);
+        if (sortBy === key) sortDir = sortDir === "asc" ? "desc" : "asc";
+        else {
           sortBy = key;
           sortDir = "asc";
         }
@@ -402,19 +401,35 @@
       });
     });
 
+    enableResizableColumns();
+
     elements.tableBody.addEventListener("change", (event) => {
-      const select = event.target.closest("select[data-action='set-state']");
-      if (!select) return;
+      const stateSelectEl = event.target.closest("select[data-action='set-state']");
+      if (stateSelectEl) {
+        const rowId = stateSelectEl.dataset.id;
+        const nextState = normalizeState(stateSelectEl.value);
+        if (!rowId || !nextState) return;
+        rows = rows.map((row) => (row.id === rowId ? { ...row, estado: nextState } : row));
+        statusOverrides[rowId] = nextState;
+        saveManualInvoices();
+        saveStatusOverrides();
+        applyFiltersAndRender();
+        return;
+      }
 
-      const rowId = select.dataset.id;
-      const nextState = normalizeState(select.value);
-      if (!rowId || !nextState) return;
+      const paymentDateInput = event.target.closest("input[data-action='set-payment-date']");
+      if (!paymentDateInput) return;
 
-      rows = rows.map((row) => (row.id === rowId ? { ...row, estado: nextState } : row));
-      statusOverrides[rowId] = nextState;
+      const rowId = paymentDateInput.dataset.id;
+      if (!rowId) return;
+      const nextDate = String(paymentDateInput.value || "").trim();
 
+      rows = rows.map((row) =>
+        row.id === rowId ? { ...row, fecha_pago: nextDate, fechaPagoDate: parseLocalDate(nextDate) } : row,
+      );
+      paymentDateOverrides[rowId] = nextDate;
       saveManualInvoices();
-      saveStatusOverrides();
+      savePaymentDateOverrides();
       applyFiltersAndRender();
     });
   }
@@ -422,7 +437,6 @@
   function applyAutomaticDueDate() {
     const emission = parseLocalDate(elements.mEmision.value);
     const days = Number(elements.mAutoDueDays.value || 0);
-
     if (!emission || !days) return;
 
     const dueDate = new Date(emission);
@@ -447,6 +461,7 @@
       periodo: getValue(elements.mPeriodo),
       emision: getValue(elements.mEmision),
       vencimiento: getValue(elements.mVencimiento),
+      fecha_pago: "",
       importe: getValue(elements.mImporte),
       pagado: getValue(elements.mPagado),
       estado: getValue(elements.mEstado),
@@ -455,9 +470,11 @@
     const [invoice] = normalizeRows([raw], { source: "manual" });
     rows.unshift(invoice);
     statusOverrides[invoice.id] = invoice.estado;
+    paymentDateOverrides[invoice.id] = invoice.fecha_pago || "";
 
     saveManualInvoices();
     saveStatusOverrides();
+    savePaymentDateOverrides();
     fillFilters();
     applyFiltersAndRender();
 
@@ -477,11 +494,11 @@
         Periodo: r.periodo || "",
         Emision: formatDate(r.emisionDate),
         Vencimiento: formatDate(r.vencDate),
-        Importe: r.importe,
-        Pagado: r.pagado,
-        Saldo: r.saldo,
         Estado: r.estado,
         "Dias vencido": r.dias_vencido,
+        Pagado: r.pagado,
+        Saldo: r.saldo,
+        "Fecha pago": r.fecha_pago || "",
         Origen: r.source === "manual" ? "Manual" : "CSV",
       }));
 
@@ -496,11 +513,7 @@
     const headers = Object.keys(exportRows[0] || {});
     const csv = [
       headers.join(","),
-      ...exportRows.map((row) =>
-        headers
-          .map((key) => `"${String(row[key] ?? "").replace(/"/g, '""')}"`)
-          .join(","),
-      ),
+      ...exportRows.map((row) => headers.map((key) => `"${String(row[key] ?? "").replace(/"/g, '""')}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -517,7 +530,7 @@
   }
 
   function getValue(el) {
-    return el ? String(el.value || "").trim() : "";
+    return String(el?.value || "").trim();
   }
 
   function applyFiltersAndRender() {
@@ -534,10 +547,8 @@
     filtered = rows.filter((r) => {
       if (client && r.cliente !== client) return false;
       if (status && r.estado !== status) return false;
-
       if (overdue === "SI" && r.dias_vencido <= 0) return false;
       if (overdue === "NO" && r.dias_vencido > 0) return false;
-
       if (emissionFrom && (!r.emisionDate || r.emisionDate < emissionFrom)) return false;
       if (emissionTo && (!r.emisionDate || r.emisionDate > emissionTo)) return false;
       if (dueFrom && (!r.vencDate || r.vencDate < dueFrom)) return false;
@@ -547,7 +558,6 @@
         const blob = [r.cliente, r.nro_factura, r.periodo, r.estado, formatDate(r.emisionDate), formatDate(r.vencDate)]
           .join(" ")
           .toLowerCase();
-
         if (!blob.includes(search)) return false;
       }
 
@@ -578,19 +588,16 @@
       ["Cantidad facturas +90", String(facturas90), "Con más de 90 días vencidas"],
     ];
 
-    if (elements.kpiGrid) {
-      elements.kpiGrid.innerHTML = kpis
-        .map(
-          ([title, value, caption]) =>
-            `<article class="card"><strong>${title}</strong><p class="kpi-value">${value}</p><p class="kpi-caption">${caption}</p></article>`,
-        )
-        .join("");
-    }
+    elements.kpiGrid.innerHTML = kpis
+      .map(
+        ([title, value, caption]) =>
+          `<article class="card"><strong>${title}</strong><p class="kpi-value">${value}</p><p class="kpi-caption">${caption}</p></article>`,
+      )
+      .join("");
   }
 
   function renderCharts(data) {
     const buckets = { "0-30": 0, "31-60": 0, "61-90": 0, "+90": 0 };
-
     const vencidaPorCliente = {};
     let pendienteMes = 0;
     let cobradoMes = 0;
@@ -637,17 +644,12 @@
 
     monthChart = recreateChart(monthChart, "monthChart", {
       type: "doughnut",
-      data: {
-        labels: ["Cobrado", "Pendiente"],
-        datasets: [{ data: [cobradoMes, pendienteMes], backgroundColor: ["#0f766e", "#a1324f"] }],
-      },
+      data: { labels: ["Cobrado", "Pendiente"], datasets: [{ data: [cobradoMes, pendienteMes], backgroundColor: ["#0f766e", "#a1324f"] }] },
       options: { responsive: true, maintainAspectRatio: false },
     });
   }
 
   function renderAlerts(data) {
-    if (!elements.alert90 || !elements.alertUpcoming || !elements.alertNoPeriod) return;
-
     const clients90 = aggregateByClient(data.filter((r) => r.dias_vencido > 90 && r.saldo > 0));
     const upcoming = data.filter((r) => {
       if (!r.vencDate || r.saldo <= 0) return false;
@@ -676,13 +678,11 @@
   }
 
   function renderTable() {
-    if (!elements.tableBody) return;
-
     const sortKey = resolveSortKey(sortBy);
     const sorted = [...filtered].sort((a, b) => compareValues(a[sortKey], b[sortKey], sortDir));
 
     if (!sorted.length) {
-      elements.tableBody.innerHTML = '<tr><td colspan="10" style="color:#6b7280">No hay resultados para los filtros aplicados.</td></tr>';
+      elements.tableBody.innerHTML = '<tr><td colspan="12" style="color:#6b7280">No hay resultados para los filtros aplicados.</td></tr>';
       return;
     }
 
@@ -695,10 +695,11 @@
       <td>${formatDate(r.emisionDate)}</td>
       <td>${formatDate(r.vencDate)}</td>
       <td>${formatMoney(r.importe)}</td>
-      <td>${formatMoney(r.pagado)}</td>
-      <td>${formatMoney(r.saldo)}</td>
       <td>${stateSelect(r)}</td>
       <td>${r.dias_vencido}</td>
+      <td>${formatMoney(r.pagado)}</td>
+      <td>${formatMoney(r.saldo)}</td>
+      <td><input type="date" class="payment-date-input" data-action="set-payment-date" data-id="${escapeHtml(r.id)}" value="${escapeHtml(r.fecha_pago || "")}" /></td>
     </tr>`,
       )
       .join("");
@@ -756,9 +757,7 @@
     };
 
     const estado = normalizeState(row.estado) || "PENDIENTE";
-    return `<select class="state-select ${map[estado] || "state-pending"}" data-action="set-state" data-id="${escapeHtml(
-      row.id,
-    )}">
+    return `<select class="state-select ${map[estado] || "state-pending"}" data-action="set-state" data-id="${escapeHtml(row.id)}">
       ${["PENDIENTE", "COBRADO", "PARCIAL", "ANULADA"]
         .map((item) => `<option value="${item}" ${item === estado ? "selected" : ""}>${item}</option>`)
         .join("")}
@@ -782,6 +781,40 @@
       hash |= 0;
     }
     return `inv_${Math.abs(hash)}`;
+  }
+
+  function enableResizableColumns() {
+    const headers = document.querySelectorAll(".table-wrap thead th");
+    headers.forEach((th) => {
+      if (th.querySelector(".col-resizer")) return;
+      th.classList.add("resizable-col");
+
+      const handle = document.createElement("span");
+      handle.className = "col-resizer";
+      th.appendChild(handle);
+
+      let startX = 0;
+      let startWidth = 0;
+
+      const onMouseMove = (event) => {
+        const width = Math.max(90, startWidth + (event.clientX - startX));
+        th.style.width = `${width}px`;
+        th.style.minWidth = `${width}px`;
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      handle.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        startX = event.clientX;
+        startWidth = th.offsetWidth;
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+    });
   }
 
   function escapeHtml(value) {

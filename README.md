@@ -1,48 +1,51 @@
-# Pichicho 🐶
+# Tablero General — San Jorge
 
-App comunitaria (solo perros) para reportar casos de perros perdidos, encontrados, heridos o vistos sueltos.
+Sitio estático (HTML/CSS/JS vanilla) para correr en una PC de oficina y publicar por Cloudflare Tunnel.
 
-## Stack
-- Expo + React Native + TypeScript
-- Firebase Authentication + Firestore + Storage
-- react-native-maps
-- expo-location
-- expo-notifications
+- URL objetivo: https://tablero.sanjorgelimpieza.com.ar/
 
-## Configuración
-1. Creá un proyecto en Firebase.
-2. Habilitá Authentication (email/password), Firestore y Storage.
-3. Copiá `.env.example` a `.env` y completá las variables `EXPO_PUBLIC_FIREBASE_*`.
-4. Instalá dependencias:
-   ```bash
-   npm install
-   ```
-5. Ejecutá la app:
-   ```bash
-   npx expo start
-   ```
+## Módulos
 
-## Estructura
-- `src/screens`: pantallas
-- `src/components`: componentes reutilizables
-- `src/services`: Firebase y lógica de datos
-- `src/types`: tipos de dominio
-- `src/utils`: utilidades
+- `/index.html`: portada.
+- `/cobranzas/`: dashboard de cobranzas (CSV).
+- `/proveedores/`: dashboard de proveedores con **carga manual en pantalla** (sin Excel/CSV).
 
-## MVP incluido
-- Login/registro por email
-- Publicación de casos con wizard (fotos + GPS + datos básicos)
-- Feed de casos recientes (últimos 7 días) con filtros base
-- Mapa con pines por urgencia/estado
-- Detalle de caso con comentarios, acciones y reportes
-- Flujo “Perdí mi perro” con ubicación aproximada en UI
-- Ajustes con permisos para notificaciones
+## Cobranzas (CSV)
 
-## Assets de Expo (ícono/splash)
-- El proyecto referencia estos archivos en `app.json`:
-  - `assets/icon.png`
-  - `assets/splash.png`
-  - `assets/adaptive-icon.png`
-  - `assets/favicon.png`
-  - `assets/notification-icon.png`
-- **No se versionan en este repositorio**. Subilos manualmente en `assets/` antes de correr `npx expo start`.
+Fuente:
+- `/data/invoices.csv`
+- `/data/invoices.sample.csv`
+
+Flujo recomendado:
+1. Preparar Excel con pestaña `DATA_COBRANZAS`.
+2. Exportar CSV con headers:
+   - `cliente,nro_factura,periodo,emision,vencimiento,importe,pagado`
+3. Reemplazar `/data/invoices.csv`.
+
+## Proveedores (carga manual)
+
+En `/proveedores/` podés:
+- Cargar facturas manualmente desde el botón **Cargar Factura**.
+- Filtrar, ordenar, marcar como pagada, volver a **Pendiente** y eliminar.
+- Ver KPIs y gráficos automáticamente.
+- Gestionar **Datos de proveedores** (CUIT, CBU, responsable y contacto) con botón **Agregar proveedor**.
+
+> Los datos se guardan en `localStorage` del navegador de esa PC.
+> Si se borra caché/datos del navegador, se pierden los registros.
+
+## Ejecutar local
+
+```bash
+python -m http.server 8000
+```
+
+Abrir:
+- `http://localhost:8000/`
+- `http://localhost:8000/cobranzas/`
+- `http://localhost:8000/proveedores/`
+
+## Publicación (PC + Cloudflare Tunnel)
+
+- Mantener la PC encendida y con internet.
+- Exponer el puerto local (ej: 8000) por Tunnel.
+- Configurar DNS para apuntar `tablero.sanjorgelimpieza.com.ar` al tunnel.

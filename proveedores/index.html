@@ -10,16 +10,23 @@
     <div class="page-shell">
       <header class="header">
         <h1>San Jorge — Módulo Proveedores</h1>
-        <p class="subtitle">Carga manual de facturas y seguimiento de pagos (sin backend)</p>
+        <p class="subtitle">Gestión manual de facturas y datos bancarios (sin backend)</p>
       </header>
 
       <main class="container">
         <a class="link-btn" href="../index.html">← Volver a portada</a>
 
         <section class="card" style="margin-top: 1rem">
+          <div class="action-row">
+            <button id="toggleInvoiceForm" class="primary-btn" type="button">Cargar Factura</button>
+            <button id="toggleSuppliersPanel" class="secondary-btn" type="button">Datos de proveedores</button>
+          </div>
+        </section>
+
+        <section id="invoiceFormSection" class="card hidden" style="margin-top: 1rem">
           <h3>Nueva factura de proveedor</h3>
           <form id="invoiceForm" class="toolbar">
-            <label>Proveedor <input required id="fProveedor" /></label>
+            <label>Proveedor <input required id="fProveedor" list="supplierNames" /></label>
             <label>Nro factura <input required id="fFactura" /></label>
             <label>Concepto <input id="fConcepto" /></label>
             <label>Emisión <input type="date" required id="fEmision" /></label>
@@ -28,7 +35,39 @@
             <label>Pagado <input type="number" min="0" step="0.01" id="fPagado" value="0" /></label>
             <button class="primary-btn" type="submit">Guardar factura</button>
           </form>
-          <p class="kpi-caption">Los datos se guardan en esta PC usando LocalStorage del navegador.</p>
+          <datalist id="supplierNames"></datalist>
+          <p class="kpi-caption">Las facturas se guardan en esta PC usando LocalStorage del navegador.</p>
+        </section>
+
+        <section id="suppliersPanel" class="card hidden" style="margin-top: 1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <h3 style="margin:0">Datos de proveedores</h3>
+            <button id="toggleSupplierForm" class="primary-btn" type="button">Agregar proveedor</button>
+          </div>
+
+          <form id="supplierForm" class="toolbar hidden" style="margin-top: 1rem">
+            <label>Proveedor <input required id="sNombre" /></label>
+            <label>CUIT <input required id="sCuit" placeholder="30-12345678-9" /></label>
+            <label>CBU <input required id="sCbu" placeholder="22 dígitos" /></label>
+            <label>Responsable <input required id="sResponsable" /></label>
+            <label>Contacto <input required id="sContacto" placeholder="Tel / mail" /></label>
+            <button class="primary-btn" type="submit">Guardar proveedor</button>
+          </form>
+
+          <div class="table-wrap" style="margin-top: 1rem">
+            <table>
+              <thead>
+                <tr>
+                  <th>Proveedor</th>
+                  <th>CUIT</th>
+                  <th>CBU</th>
+                  <th>Responsable</th>
+                  <th>Contacto</th>
+                </tr>
+              </thead>
+              <tbody id="suppliersBody"></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="grid kpi-grid" id="kpiGrid" style="margin-top: 1rem"></section>

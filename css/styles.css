@@ -276,3 +276,12 @@ th:hover {
   display: flex;
   gap: 0.4rem;
 }
+
+.warning-btn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.hidden {
+  display: none;
+}

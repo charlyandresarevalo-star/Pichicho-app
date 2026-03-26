@@ -1,12 +1,12 @@
 (function () {
-  const { toNumber, formatMoney, parseDate, formatDate, daysBetween, csvToObjects } = window.SJUtils;
+  const { formatMoney, formatDate, daysBetween } = window.SJUtils;
 
   const DATA_URL = "../data/invoices.csv";
-  const today = new Date();
+  const today = startOfDay(new Date());
 
   let rows = [];
   let filtered = [];
-  let sortBy = "vencimiento";
+  let sortBy = "vencDate";
   let sortDir = "asc";
 
   let agingChart;

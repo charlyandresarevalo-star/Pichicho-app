@@ -2,6 +2,7 @@
   const { formatMoney, formatDate, daysBetween } = window.SJUtils;
 
   const DATA_URL = "../data/invoices.csv";
+  const STORAGE_MANUAL_INVOICES = "sj_cobranzas_manual_v1";
   const today = startOfDay(new Date());
 
   let rows = [];
@@ -32,7 +33,21 @@
     filterSearch: document.getElementById("filterSearch"),
     tableBody: document.getElementById("tableBody"),
 
-    // Filtros opcionales de fecha/emisión/vencimiento
+    toggleManualForm: document.getElementById("toggleManualForm"),
+    manualFormSection: document.getElementById("manualFormSection"),
+    manualInvoiceForm: document.getElementById("manualInvoiceForm"),
+    exportExcelBtn: document.getElementById("exportExcelBtn"),
+
+    mCliente: document.getElementById("mCliente"),
+    mNroFactura: document.getElementById("mNroFactura"),
+    mPeriodo: document.getElementById("mPeriodo"),
+    mEmision: document.getElementById("mEmision"),
+    mAutoDueDays: document.getElementById("mAutoDueDays"),
+    mVencimiento: document.getElementById("mVencimiento"),
+    mImporte: document.getElementById("mImporte"),
+    mPagado: document.getElementById("mPagado"),
+    mEstado: document.getElementById("mEstado"),
+
     filterEmissionFrom: pickElement(["filterEmissionFrom", "filterFechaEmisionDesde", "fechaEmisionDesde", "emisionDesde"]),
     filterEmissionTo: pickElement(["filterEmissionTo", "filterFechaEmisionHasta", "fechaEmisionHasta", "emisionHasta"]),
     filterDueFrom: pickElement(["filterDueFrom", "filterFechaVencimientoDesde", "fechaVencimientoDesde", "vencimientoDesde"]),
@@ -67,7 +82,10 @@
         return res.text();
       });
 
-      rows = normalizeRows(parseCsv(csvText));
+      const baseRows = normalizeRows(parseCsv(csvText), { source: "csv" });
+      const manualRows = loadManualInvoices();
+      rows = [...manualRows, ...baseRows];
+
       fillFilters();
       bindEvents();
       applyFiltersAndRender();
@@ -159,19 +177,14 @@
 
     if (hasComma && hasDot) {
       if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
-        // Formato AR: 11.990.340,29
         str = str.replace(/\./g, "").replace(",", ".");
       } else {
-        // Formato EN: 11,990,340.29
         str = str.replace(/,/g, "");
       }
     } else if (hasComma) {
-      // 12345,67
       str = str.replace(/\./g, "").replace(",", ".");
     } else if ((str.match(/\./g) || []).length > 1) {
-      // 11.990.340
-      const parts = str.split(".");
-      str = parts.join("");
+      str = str.split(".").join("");
     }
 
     const num = Number(str);
@@ -200,7 +213,9 @@
     return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed);
   }
 
-  function normalizeRows(data) {
+  function normalizeRows(data, options = {}) {
+    const source = options.source || "csv";
+
     return data.map((item) => {
       const importe = parseAmount(item.importe_total || item.importe);
       const pagado = parseAmount(item.importe_pagado || item.pagado);
@@ -226,6 +241,8 @@
       const periodo = /^\d{5}$/.test(periodoRaw) ? `0${periodoRaw}` : periodoRaw;
 
       return {
+        id: item.id || crypto.randomUUID(),
+        source,
         cliente: item.cliente || "(Sin cliente)",
         nro_factura: item.nro_factura || "-",
         periodo,
@@ -243,19 +260,41 @@
     });
   }
 
+  function loadManualInvoices() {
+    const raw = localStorage.getItem(STORAGE_MANUAL_INVOICES);
+    if (!raw) return [];
+
+    try {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) return [];
+      return normalizeRows(data, { source: "manual" });
+    } catch (_error) {
+      localStorage.removeItem(STORAGE_MANUAL_INVOICES);
+      return [];
+    }
+  }
+
+  function saveManualInvoices() {
+    const manualRows = rows.filter((row) => row.source === "manual").map((row) => ({
+      id: row.id,
+      cliente: row.cliente,
+      nro_factura: row.nro_factura,
+      periodo: row.periodo,
+      emision: row.emision,
+      vencimiento: row.vencimiento,
+      importe: row.importe,
+      pagado: row.pagado,
+      estado: row.estado,
+    }));
+
+    localStorage.setItem(STORAGE_MANUAL_INVOICES, JSON.stringify(manualRows));
+  }
+
   function fillFilters() {
     if (!elements.filterClient) return;
 
-    // Evita duplicar opciones si el script se reinicializa
-    const firstOption = elements.filterClient.querySelector('option[value=""]');
-    elements.filterClient.innerHTML = "";
-    if (firstOption) elements.filterClient.appendChild(firstOption.cloneNode(true));
-    else {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Todos";
-      elements.filterClient.appendChild(option);
-    }
+    const selectedClient = elements.filterClient.value;
+    elements.filterClient.innerHTML = '<option value="">Todos</option>';
 
     const clients = [...new Set(rows.map((r) => r.cliente).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, "es"),
@@ -267,6 +306,8 @@
       option.textContent = client;
       elements.filterClient.appendChild(option);
     });
+
+    elements.filterClient.value = selectedClient;
   }
 
   function bindEvents() {
@@ -289,6 +330,25 @@
       elements.filterSearch.addEventListener("input", applyFiltersAndRender);
     }
 
+    if (elements.toggleManualForm) {
+      elements.toggleManualForm.addEventListener("click", () => {
+        elements.manualFormSection.classList.toggle("hidden");
+      });
+    }
+
+    if (elements.mAutoDueDays) {
+      elements.mAutoDueDays.addEventListener("change", applyAutomaticDueDate);
+      elements.mEmision.addEventListener("change", applyAutomaticDueDate);
+    }
+
+    if (elements.manualInvoiceForm) {
+      elements.manualInvoiceForm.addEventListener("submit", handleManualInvoiceSubmit);
+    }
+
+    if (elements.exportExcelBtn) {
+      elements.exportExcelBtn.addEventListener("click", exportInvoicesToExcel);
+    }
+
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.addEventListener("click", () => {
         const rawKey = th.dataset.sort;
@@ -303,6 +363,97 @@
         renderTable();
       });
     });
+  }
+
+  function applyAutomaticDueDate() {
+    const emission = parseLocalDate(elements.mEmision.value);
+    const days = Number(elements.mAutoDueDays.value || 0);
+
+    if (!emission || !days) return;
+
+    const dueDate = new Date(emission);
+    dueDate.setDate(dueDate.getDate() + days);
+    elements.mVencimiento.value = toDateInputValue(dueDate);
+  }
+
+  function toDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function handleManualInvoiceSubmit(event) {
+    event.preventDefault();
+
+    const raw = {
+      id: crypto.randomUUID(),
+      cliente: getValue(elements.mCliente),
+      nro_factura: getValue(elements.mNroFactura),
+      periodo: getValue(elements.mPeriodo),
+      emision: getValue(elements.mEmision),
+      vencimiento: getValue(elements.mVencimiento),
+      importe: getValue(elements.mImporte),
+      pagado: getValue(elements.mPagado),
+      estado: getValue(elements.mEstado),
+    };
+
+    const [invoice] = normalizeRows([raw], { source: "manual" });
+    rows.unshift(invoice);
+
+    saveManualInvoices();
+    fillFilters();
+    applyFiltersAndRender();
+
+    elements.manualInvoiceForm.reset();
+    elements.mPagado.value = 0;
+    elements.mEstado.value = "";
+    elements.mAutoDueDays.value = "";
+    elements.manualFormSection.classList.add("hidden");
+  }
+
+  function exportInvoicesToExcel() {
+    const exportRows = [...rows]
+      .sort((a, b) => compareValues(a.vencDate, b.vencDate, "asc"))
+      .map((r) => ({
+        Cliente: r.cliente,
+        "Nro factura": r.nro_factura,
+        Periodo: r.periodo || "",
+        Emision: formatDate(r.emisionDate),
+        Vencimiento: formatDate(r.vencDate),
+        Importe: r.importe,
+        Pagado: r.pagado,
+        Saldo: r.saldo,
+        Estado: r.estado,
+        "Dias vencido": r.dias_vencido,
+        Origen: r.source === "manual" ? "Manual" : "CSV",
+      }));
+
+    if (window.XLSX) {
+      const ws = window.XLSX.utils.json_to_sheet(exportRows);
+      const wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, "Cobranzas");
+      window.XLSX.writeFile(wb, `cobranzas_${toDateInputValue(new Date())}.xlsx`);
+      return;
+    }
+
+    const headers = Object.keys(exportRows[0] || {});
+    const csv = [
+      headers.join(","),
+      ...exportRows.map((row) =>
+        headers
+          .map((key) => `"${String(row[key] ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cobranzas_${toDateInputValue(new Date())}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   function resolveSortKey(key) {
@@ -337,14 +488,7 @@
       if (dueTo && (!r.vencDate || r.vencDate > dueTo)) return false;
 
       if (search) {
-        const blob = [
-          r.cliente,
-          r.nro_factura,
-          r.periodo,
-          r.estado,
-          formatDate(r.emisionDate),
-          formatDate(r.vencDate),
-        ]
+        const blob = [r.cliente, r.nro_factura, r.periodo, r.estado, formatDate(r.emisionDate), formatDate(r.vencDate)]
           .join(" ")
           .toLowerCase();
 
@@ -365,8 +509,7 @@
     const vencidoTotal = sum(data, (r) => (r.dias_vencido > 0 ? r.saldo : 0));
     const porcentajeVencido = pendienteTotal ? (vencidoTotal / pendienteTotal) * 100 : 0;
 
-    const sameMonth = (date) =>
-      date && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+    const sameMonth = (date) => date && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
     const cobradoMes = sum(data, (r) => (sameMonth(r.emisionDate) ? r.pagado : 0));
 
     const facturas90 = data.filter((r) => r.dias_vencido > 90 && r.saldo > 0).length;
@@ -390,12 +533,7 @@
   }
 
   function renderCharts(data) {
-    const buckets = {
-      "0-30": 0,
-      "31-60": 0,
-      "61-90": 0,
-      "+90": 0,
-    };
+    const buckets = { "0-30": 0, "31-60": 0, "61-90": 0, "+90": 0 };
 
     const vencidaPorCliente = {};
     let pendienteMes = 0;
@@ -413,11 +551,7 @@
         vencidaPorCliente[r.cliente] = (vencidaPorCliente[r.cliente] || 0) + r.saldo;
       }
 
-      if (
-        r.emisionDate &&
-        r.emisionDate.getMonth() === today.getMonth() &&
-        r.emisionDate.getFullYear() === today.getFullYear()
-      ) {
+      if (r.emisionDate && r.emisionDate.getMonth() === today.getMonth() && r.emisionDate.getFullYear() === today.getFullYear()) {
         pendienteMes += r.saldo;
         cobradoMes += r.pagado;
       }
@@ -431,13 +565,7 @@
       type: "bar",
       data: {
         labels: Object.keys(buckets),
-        datasets: [
-          {
-            label: "Aging (ARS)",
-            data: Object.values(buckets),
-            backgroundColor: ["#a1324f", "#b45309", "#0f766e", "#7f1d1d"],
-          },
-        ],
+        datasets: [{ label: "Aging (ARS)", data: Object.values(buckets), backgroundColor: ["#a1324f", "#b45309", "#0f766e", "#7f1d1d"] }],
       },
       options: { responsive: true, maintainAspectRatio: false },
     });
@@ -446,13 +574,7 @@
       type: "bar",
       data: {
         labels: topClientes.map(([name]) => name),
-        datasets: [
-          {
-            label: "Deuda vencida",
-            data: topClientes.map(([, amount]) => amount),
-            backgroundColor: "#7a213a",
-          },
-        ],
+        datasets: [{ label: "Deuda vencida", data: topClientes.map(([, amount]) => amount), backgroundColor: "#7a213a" }],
       },
       options: { indexAxis: "y", responsive: true, maintainAspectRatio: false },
     });
@@ -504,8 +626,7 @@
     const sorted = [...filtered].sort((a, b) => compareValues(a[sortKey], b[sortKey], sortDir));
 
     if (!sorted.length) {
-      elements.tableBody.innerHTML =
-        '<tr><td colspan="10" style="color:#6b7280">No hay resultados para los filtros aplicados.</td></tr>';
+      elements.tableBody.innerHTML = '<tr><td colspan="10" style="color:#6b7280">No hay resultados para los filtros aplicados.</td></tr>';
       return;
     }
 

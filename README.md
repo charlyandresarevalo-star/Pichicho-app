@@ -10,9 +10,9 @@ Sitio estático (HTML/CSS/JS vanilla) para correr en una PC de oficina y publica
 - `/cobranzas/`: dashboard de cobranzas (CSV).
 - `/proveedores/`: dashboard de proveedores con **carga manual en pantalla** (sin Excel/CSV).
 
-## Cobranzas (CSV)
+## Cobranzas (CSV + carga manual)
 
-Fuente:
+Fuente base:
 - `/data/invoices.csv`
 - `/data/invoices.sample.csv`
 
@@ -21,6 +21,11 @@ Flujo recomendado:
 2. Exportar CSV con headers:
    - `cliente,nro_factura,periodo,emision,vencimiento,importe,pagado`
 3. Reemplazar `/data/invoices.csv`.
+
+Además, en `/cobranzas/` podés:
+- Agregar facturas manualmente con botón **Agregar factura** (sin perder la base del CSV).
+- Usar **Vencimiento automático** de 15 / 30 / 60 días desde la fecha de emisión.
+- Exportar un archivo **Excel** con todas las facturas cargadas (CSV + manuales) desde el botón **Exportar Excel**.
 
 ## Proveedores (carga manual)
 

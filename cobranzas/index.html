@@ -14,7 +14,46 @@
       </header>
 
       <main class="container">
-        <a class="link-btn" href="../index.html">← Volver a portada</a>
+        <div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:center">
+          <a class="link-btn" href="../index.html">← Volver a portada</a>
+          <div class="action-row">
+            <button id="toggleManualForm" class="primary-btn" type="button">Agregar factura</button>
+            <button id="exportExcelBtn" class="secondary-btn" type="button">Exportar Excel</button>
+          </div>
+        </div>
+
+        <section id="manualFormSection" class="card hidden" style="margin-top: 1rem">
+          <h3>Carga manual de factura</h3>
+          <form id="manualInvoiceForm" class="toolbar">
+            <label>Cliente <input id="mCliente" required /></label>
+            <label>Nro factura <input id="mNroFactura" required /></label>
+            <label>Periodo <input id="mPeriodo" placeholder="MMYYYY o texto" /></label>
+            <label>Emisión <input id="mEmision" type="date" required /></label>
+            <label>
+              Vencimiento automático
+              <select id="mAutoDueDays">
+                <option value="">Manual</option>
+                <option value="15">15 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+              </select>
+            </label>
+            <label>Vencimiento <input id="mVencimiento" type="date" required /></label>
+            <label>Importe <input id="mImporte" type="number" min="0" step="0.01" required /></label>
+            <label>Pagado <input id="mPagado" type="number" min="0" step="0.01" value="0" /></label>
+            <label>
+              Estado
+              <select id="mEstado">
+                <option value="">Automático</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="COBRADO">Cobrado</option>
+              </select>
+            </label>
+            <button class="primary-btn" type="submit">Guardar factura</button>
+          </form>
+          <p class="kpi-caption">La carga manual se guarda en esta PC y se suma al histórico del CSV sin reemplazarlo.</p>
+        </section>
 
         <section class="grid kpi-grid" id="kpiGrid" style="margin-top: 1rem"></section>
 
@@ -90,10 +129,11 @@
         </section>
       </main>
 
-      <footer class="footer">Archivo de origen: /data/invoices.csv</footer>
+      <footer class="footer">Archivo base: /data/invoices.csv · Carga manual guardada en navegador</footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="../js/app.js"></script>
     <script src="./cobranzas.js"></script>
   </body>

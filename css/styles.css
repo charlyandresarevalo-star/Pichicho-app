@@ -246,3 +246,33 @@ th:hover {
     height: 250px;
   }
 }
+
+.primary-btn,
+.secondary-btn,
+.danger-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.primary-btn {
+  background: var(--bordo-700);
+  color: var(--white);
+}
+
+.secondary-btn {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.danger-btn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-row {
+  display: flex;
+  gap: 0.4rem;
+}

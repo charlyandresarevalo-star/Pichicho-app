@@ -216,6 +216,11 @@ th:hover {
   color: #991b1b;
 }
 
+.status-cancelled {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .footer {
   margin-top: auto;
   padding: 1rem;
@@ -284,4 +289,33 @@ th:hover {
 
 .hidden {
   display: none;
+}
+
+.state-select {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 120px;
+}
+
+.state-select.state-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.state-select.state-partial {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.state-select.state-pending {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.state-select.state-cancelled {
+  background: #e5e7eb;
+  color: #374151;
 }

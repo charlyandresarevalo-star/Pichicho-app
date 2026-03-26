@@ -3,9 +3,11 @@
 
   const DATA_URL = "../data/invoices.csv";
   const STORAGE_MANUAL_INVOICES = "sj_cobranzas_manual_v1";
+  const STORAGE_STATUS_OVERRIDES = "sj_cobranzas_estado_overrides_v1";
   const today = startOfDay(new Date());
 
   let rows = [];
+  let statusOverrides = {};
   let filtered = [];
   let sortBy = "vencDate";
   let sortDir = "asc";
@@ -84,7 +86,9 @@
 
       const baseRows = normalizeRows(parseCsv(csvText), { source: "csv" });
       const manualRows = loadManualInvoices();
+      statusOverrides = loadStatusOverrides();
       rows = [...manualRows, ...baseRows];
+      applyStoredStateOverrides();
 
       fillFilters();
       bindEvents();
@@ -230,6 +234,7 @@
 
       let estado = String(item.estado || "").toUpperCase().trim();
       if (estado === "PAGADA" || estado === "PAGADO") estado = "COBRADO";
+      estado = normalizeState(estado);
 
       if (!estado) {
         if (saldo <= 0) estado = "COBRADO";
@@ -241,7 +246,15 @@
       const periodo = /^\d{5}$/.test(periodoRaw) ? `0${periodoRaw}` : periodoRaw;
 
       return {
-        id: item.id || crypto.randomUUID(),
+        id:
+          item.id ||
+          buildInvoiceId(
+            item.cliente || "",
+            item.nro_factura || "",
+            emisionRaw,
+            vencimientoRaw,
+            importe,
+          ),
         source,
         cliente: item.cliente || "(Sin cliente)",
         nro_factura: item.nro_factura || "-",
@@ -274,6 +287,19 @@
     }
   }
 
+  function loadStatusOverrides() {
+    const raw = localStorage.getItem(STORAGE_STATUS_OVERRIDES);
+    if (!raw) return {};
+
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (_error) {
+      localStorage.removeItem(STORAGE_STATUS_OVERRIDES);
+      return {};
+    }
+  }
+
   function saveManualInvoices() {
     const manualRows = rows.filter((row) => row.source === "manual").map((row) => ({
       id: row.id,
@@ -288,6 +314,18 @@
     }));
 
     localStorage.setItem(STORAGE_MANUAL_INVOICES, JSON.stringify(manualRows));
+  }
+
+  function saveStatusOverrides() {
+    localStorage.setItem(STORAGE_STATUS_OVERRIDES, JSON.stringify(statusOverrides));
+  }
+
+  function applyStoredStateOverrides() {
+    rows = rows.map((row) => {
+      const override = normalizeState(statusOverrides[row.id]);
+      if (!override) return row;
+      return { ...row, estado: override };
+    });
   }
 
   function fillFilters() {
@@ -363,6 +401,22 @@
         renderTable();
       });
     });
+
+    elements.tableBody.addEventListener("change", (event) => {
+      const select = event.target.closest("select[data-action='set-state']");
+      if (!select) return;
+
+      const rowId = select.dataset.id;
+      const nextState = normalizeState(select.value);
+      if (!rowId || !nextState) return;
+
+      rows = rows.map((row) => (row.id === rowId ? { ...row, estado: nextState } : row));
+      statusOverrides[rowId] = nextState;
+
+      saveManualInvoices();
+      saveStatusOverrides();
+      applyFiltersAndRender();
+    });
   }
 
   function applyAutomaticDueDate() {
@@ -400,8 +454,10 @@
 
     const [invoice] = normalizeRows([raw], { source: "manual" });
     rows.unshift(invoice);
+    statusOverrides[invoice.id] = invoice.estado;
 
     saveManualInvoices();
+    saveStatusOverrides();
     fillFilters();
     applyFiltersAndRender();
 
@@ -641,7 +697,7 @@
       <td>${formatMoney(r.importe)}</td>
       <td>${formatMoney(r.pagado)}</td>
       <td>${formatMoney(r.saldo)}</td>
-      <td>${statePill(r.estado)}</td>
+      <td>${stateSelect(r)}</td>
       <td>${r.dias_vencido}</td>
     </tr>`,
       )
@@ -691,13 +747,41 @@
     return data.reduce((acc, row) => acc + selector(row), 0);
   }
 
-  function statePill(status) {
+  function stateSelect(row) {
     const map = {
-      COBRADO: "status-paid",
-      PARCIAL: "status-partial",
-      PENDIENTE: "status-pending",
+      COBRADO: "state-paid",
+      PARCIAL: "state-partial",
+      PENDIENTE: "state-pending",
+      ANULADA: "state-cancelled",
     };
-    return `<span class="status-pill ${map[status] || "status-pending"}">${escapeHtml(status)}</span>`;
+
+    const estado = normalizeState(row.estado) || "PENDIENTE";
+    return `<select class="state-select ${map[estado] || "state-pending"}" data-action="set-state" data-id="${escapeHtml(
+      row.id,
+    )}">
+      ${["PENDIENTE", "COBRADO", "PARCIAL", "ANULADA"]
+        .map((item) => `<option value="${item}" ${item === estado ? "selected" : ""}>${item}</option>`)
+        .join("")}
+    </select>`;
+  }
+
+  function normalizeState(value) {
+    const state = String(value || "").toUpperCase().trim();
+    if (state === "PAGADA" || state === "PAGADO") return "COBRADO";
+    if (["PENDIENTE", "COBRADO", "PARCIAL", "ANULADA"].includes(state)) return state;
+    return "";
+  }
+
+  function buildInvoiceId(cliente, nroFactura, emision, vencimiento, importe) {
+    const input = [cliente, nroFactura, emision, vencimiento, Number(importe || 0).toFixed(2)]
+      .map((part) => String(part || "").trim().toLowerCase())
+      .join("|");
+    let hash = 0;
+    for (let i = 0; i < input.length; i += 1) {
+      hash = (hash << 5) - hash + input.charCodeAt(i);
+      hash |= 0;
+    }
+    return `inv_${Math.abs(hash)}`;
   }
 
   function escapeHtml(value) {

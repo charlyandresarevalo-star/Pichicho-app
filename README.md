@@ -26,6 +26,7 @@ Además, en `/cobranzas/` podés:
 - Agregar facturas manualmente con botón **Agregar factura** (sin perder la base del CSV).
 - Usar **Vencimiento automático** de 15 / 30 / 60 días desde la fecha de emisión.
 - Exportar un archivo **Excel** con todas las facturas cargadas (CSV + manuales) desde el botón **Exportar Excel**.
+- Modificar manualmente el **Estado** en la tabla con desplegable: `Pendiente`, `Cobrado`, `Parcial`, `Anulada` (con color visual por estado).
 
 ## Proveedores (carga manual)
 

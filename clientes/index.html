@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clientes — Tablero General</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="header">
+        <h1>San Jorge — Módulo Clientes</h1>
+        <p class="subtitle">Análisis de facturación, cartera y métricas por cliente</p>
+      </header>
+
+      <main class="container">
+        <div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:center">
+          <a class="link-btn" href="../cobranzas/index.html">← Volver a cobranzas</a>
+          <div class="action-row">
+            <button id="toggleClientForm" class="primary-btn" type="button">Agregar cliente</button>
+            <button id="exportClientsBtn" class="secondary-btn" type="button">Exportar clientes</button>
+          </div>
+        </div>
+
+        <section id="clientFormSection" class="card hidden" style="margin-top:1rem">
+          <h3>Nuevo cliente</h3>
+          <form id="clientForm" class="toolbar">
+            <label>Nombre del cliente <input id="cNombre" required /></label>
+            <label>Razón social <input id="cRazonSocial" /></label>
+            <label>CUIT <input id="cCuit" /></label>
+            <label>Estado
+              <select id="cEstado"><option value="ACTIVO">Activo</option><option value="INACTIVO">Inactivo</option></select>
+            </label>
+            <label>Fecha alta <input id="cFechaAlta" type="date" /></label>
+            <label>Alias <input id="cAlias" /></label>
+            <label>Rubro <input id="cRubro" /></label>
+            <label>Zona <input id="cZona" /></label>
+            <label style="flex:1">Observaciones <input id="cObservaciones" /></label>
+            <button class="primary-btn" type="submit">Guardar cliente</button>
+          </form>
+        </section>
+
+        <section class="card" style="margin-top:1rem">
+          <h3>Filtros</h3>
+          <div class="toolbar">
+            <label>Cliente <select id="filterCliente"><option value="">Todos</option></select></label>
+            <label>Estado cliente <select id="filterEstadoCliente"><option value="">Todos</option><option value="ACTIVO">Activo</option><option value="INACTIVO">Inactivo</option></select></label>
+            <label>Desde <input id="filterDesde" type="date" /></label>
+            <label>Hasta <input id="filterHasta" type="date" /></label>
+            <label>Año <input id="filterAnio" type="number" min="2000" max="2100" /></label>
+            <label>Mes <select id="filterMes"><option value="">Todos</option></select></label>
+            <label>Estado factura <select id="filterEstadoFactura"><option value="">Todos</option><option value="COBRADO">Cobrado</option><option value="PENDIENTE">Pendiente</option><option value="VENCIDO">Vencido</option></select></label>
+            <label style="flex:1">Buscar <input id="filterSearch" placeholder="Nombre cliente" /></label>
+            <button id="clearFiltersBtn" class="secondary-btn" type="button">Limpiar filtros</button>
+          </div>
+        </section>
+
+        <section class="grid kpi-grid" id="kpiGrid" style="margin-top:1rem"></section>
+
+        <section class="grid charts-grid" style="margin-top:1rem">
+          <article class="card chart-box"><canvas id="evolutionChart"></canvas></article>
+          <article class="card chart-box"><canvas id="topBillingChart"></canvas></article>
+          <article class="card chart-box"><canvas id="topDebtChart"></canvas></article>
+          <article class="card chart-box"><canvas id="activeInactiveChart"></canvas></article>
+          <article class="card chart-box"><canvas id="shareChart"></canvas></article>
+          <article class="card chart-box"><canvas id="growthChart"></canvas></article>
+        </section>
+
+        <section class="card" style="margin-top:1rem">
+          <h3>Tabla analítica de clientes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="cliente">Cliente</th>
+                  <th data-sort="estado">Estado</th>
+                  <th data-sort="facturas">Facturas</th>
+                  <th data-sort="facturacion">Facturación total</th>
+                  <th data-sort="promedio_factura">Promedio/factura</th>
+                  <th data-sort="cobrado">Total cobrado</th>
+                  <th data-sort="pendiente">Saldo pendiente</th>
+                  <th data-sort="porcentaje_cobrado">% cobrado</th>
+                  <th data-sort="vencidas">Facturas vencidas</th>
+                  <th data-sort="ultima_factura">Última factura</th>
+                  <th data-sort="ultimo_pago">Último pago</th>
+                  <th data-sort="promedio_mensual">Promedio mensual</th>
+                  <th data-sort="crecimiento">Crecimiento %</th>
+                  <th data-sort="estado_general">Estado general</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="clientDetail" class="card" style="margin-top:1rem">
+          <h3>Detalle de cliente</h3>
+          <div id="clientDetailBody" class="kpi-caption">Seleccioná un cliente en la tabla para ver el detalle.</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="../js/app.js"></script>
+    <script src="../js/clientes-store.js"></script>
+    <script src="./clientes.js"></script>
+  </body>
+</html>

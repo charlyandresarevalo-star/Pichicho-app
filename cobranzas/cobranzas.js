@@ -13,6 +13,7 @@
   let sortDir = "asc";
   let statusOverrides = {};
   let paymentDateOverrides = {};
+  let clientsMaster = [];
 
   let agingChart;
   let topClientsChart;
@@ -41,6 +42,8 @@
     manualFormSection: document.getElementById("manualFormSection"),
     manualInvoiceForm: document.getElementById("manualInvoiceForm"),
     exportExcelBtn: document.getElementById("exportExcelBtn"),
+    openClientsBtn: document.getElementById("openClientsBtn"),
+    newClientFromInvoice: document.getElementById("newClientFromInvoice"),
 
     mCliente: document.getElementById("mCliente"),
     mNroFactura: document.getElementById("mNroFactura"),
@@ -83,6 +86,9 @@
 
   async function init() {
     try {
+      if (!window.SJClientsStore) throw new Error("No se pudo inicializar base maestra de clientes.");
+      clientsMaster = await window.SJClientsStore.loadMasterClients();
+
       const csvText = await fetch(DATA_URL).then((res) => {
         if (!res.ok) throw new Error("No se pudo leer invoices.csv");
         return res.text();
@@ -98,6 +104,7 @@
       applyStoredPaymentDateOverrides();
 
       fillFilters();
+      fillManualClientSelector();
       bindEvents();
       applyFiltersAndRender();
     } catch (error) {
@@ -252,7 +259,7 @@
       return {
         id: item.id || buildInvoiceId(item.cliente || "", item.nro_factura || "", emisionRaw, vencimientoRaw, importe),
         source,
-        cliente: item.cliente || "(Sin cliente)",
+        cliente: normalizeInvoiceClientName(item.cliente || "(Sin cliente)"),
         nro_factura: item.nro_factura || "-",
         periodo,
         emision: emisionRaw,
@@ -388,6 +395,8 @@
 
     elements.manualInvoiceForm.addEventListener("submit", handleManualInvoiceSubmit);
     elements.exportExcelBtn.addEventListener("click", exportInvoicesToExcel);
+    elements.openClientsBtn.addEventListener("click", () => window.open("../clientes/index.html", "_blank"));
+    elements.newClientFromInvoice.addEventListener("click", () => window.open("../clientes/index.html", "_blank"));
 
     document.querySelectorAll("th[data-sort]").forEach((th) => {
       th.addEventListener("click", () => {
@@ -454,9 +463,16 @@
   function handleManualInvoiceSubmit(event) {
     event.preventDefault();
 
+    const selectedClient = getValue(elements.mCliente);
+    const validClient = getActiveClients().find((c) => c.cliente === selectedClient);
+    if (!validClient) {
+      alert("Seleccioná un cliente activo de la base maestra.");
+      return;
+    }
+
     const raw = {
       id: crypto.randomUUID(),
-      cliente: getValue(elements.mCliente),
+      cliente: validClient.cliente,
       nro_factura: getValue(elements.mNroFactura),
       periodo: getValue(elements.mPeriodo),
       emision: getValue(elements.mEmision),
@@ -824,6 +840,30 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function getActiveClients() {
+    return clientsMaster.filter((client) => client.activo !== false && client.estado !== "INACTIVO");
+  }
+
+  function fillManualClientSelector() {
+    const current = elements.mCliente.value;
+    elements.mCliente.innerHTML = '<option value="">Seleccionar cliente activo...</option>';
+    getActiveClients()
+      .sort((a, b) => a.cliente.localeCompare(b.cliente, "es"))
+      .forEach((client) => {
+        const option = document.createElement("option");
+        option.value = client.cliente;
+        option.textContent = client.cliente;
+        elements.mCliente.appendChild(option);
+      });
+    elements.mCliente.value = current;
+  }
+
+  function normalizeInvoiceClientName(name) {
+    const normalized = window.SJClientsStore.normalizeClientName(name);
+    const found = clientsMaster.find((client) => window.SJClientsStore.normalizeClientName(client.cliente) === normalized);
+    return found ? found.cliente : String(name || "(Sin cliente)").trim();
   }
 
   init();

@@ -7,7 +7,8 @@ Sitio estático (HTML/CSS/JS vanilla) para correr en una PC de oficina y publica
 ## Módulos
 
 - `/index.html`: portada.
-- `/cobranzas/`: dashboard de cobranzas (CSV).
+- `/cobranzas/`: dashboard de cobranzas (CSV + manual).
+- `/clientes/`: módulo maestro de clientes con KPIs, gráficos y alta manual de clientes.
 - `/proveedores/`: dashboard de proveedores con **carga manual en pantalla** (sin Excel/CSV).
 
 ## Cobranzas (CSV + carga manual)
@@ -24,11 +25,25 @@ Flujo recomendado:
 
 Además, en `/cobranzas/` podés:
 - Agregar facturas manualmente con botón **Agregar factura** (sin perder la base del CSV).
+- Botón **Clientes** en encabezado (abre `/clientes/` en nueva pestaña).
+- Campo **Cliente** de la factura con selector de clientes activos (sin texto libre) + botón `+ Nuevo cliente`.
 - Usar **Vencimiento automático** de 15 / 30 / 60 días desde la fecha de emisión.
 - Exportar un archivo **Excel** con todas las facturas cargadas (CSV + manuales) desde el botón **Exportar Excel**.
 - Modificar manualmente el **Estado** en la tabla con desplegable: `Pendiente`, `Cobrado`, `Parcial`, `Anulada` (con color visual por estado).
 - Completar **Fecha de pago** manualmente desde la tabla, con columnas `Pagado` y `Saldo` ubicadas al final.
 - Ajustar el ancho de columnas manualmente arrastrando el borde derecho del encabezado.
+
+
+## Clientes (base maestra)
+
+- Fuente maestra inicial: `/data/clientes.json` (62 clientes precargados).
+- Persistencia de cambios: `localStorage` (`sj_clientes_master_v1`).
+- Funciones principales:
+  - Alta de cliente con validación anti-duplicados y similitud.
+  - KPIs ejecutivos por cliente (facturación, deuda, crecimiento, concentración, promedios 3/6/12 meses).
+  - Filtros combinables (cliente, estado, fechas, año, mes, estado factura, buscador).
+  - Tabla analítica clickeable y panel de detalle por cliente.
+  - Exportación de clientes a Excel.
 
 ## Proveedores (carga manual)
 

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proveedores — Tablero General</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="header">
+        <h1>San Jorge — Módulo Proveedores</h1>
+        <p class="subtitle">Gestión manual de facturas y datos bancarios (sin backend)</p>
+      </header>
+
+      <main class="container">
+        <a class="link-btn" href="../index.html">← Volver a portada</a>
+
+        <section class="card" style="margin-top: 1rem">
+          <div class="action-row">
+            <button id="toggleInvoiceForm" class="primary-btn" type="button">Cargar Factura</button>
+            <button id="toggleSuppliersPanel" class="secondary-btn" type="button">Datos de proveedores</button>
+          </div>
+        </section>
+
+        <section id="invoiceFormSection" class="card hidden" style="margin-top: 1rem">
+          <h3>Nueva factura de proveedor</h3>
+          <form id="invoiceForm" class="toolbar">
+            <label>
+              Proveedor
+              <select required id="fProveedor">
+                <option value="">Seleccionar proveedor...</option>
+              </select>
+            </label>
+            <label>Nro factura <input required id="fFactura" /></label>
+            <label>Concepto <input id="fConcepto" /></label>
+            <label>Emisión <input type="date" required id="fEmision" /></label>
+            <label>Vencimiento <input type="date" required id="fVencimiento" /></label>
+            <label>Importe <input type="number" min="0" step="0.01" required id="fImporte" /></label>
+            <label>Pagado <input type="number" min="0" step="0.01" id="fPagado" value="0" /></label>
+            <button class="primary-btn" type="submit">Guardar factura</button>
+          </form>
+          <p class="kpi-caption">Solo se permiten proveedores ya cargados. CUIT, CBU y Centro de Costos se completan automáticamente.</p>
+        </section>
+
+        <section id="suppliersPanel" class="card hidden" style="margin-top: 1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <h3 style="margin:0">Datos de proveedores</h3>
+            <div class="action-row">
+              <button id="loadSampleData" class="secondary-btn" type="button">Cargar ejemplos</button>
+              <button id="toggleSupplierForm" class="primary-btn" type="button">Agregar proveedor</button>
+            </div>
+          </div>
+
+          <form id="supplierForm" class="toolbar hidden" style="margin-top: 1rem">
+            <label>Proveedor <input required id="sNombre" /></label>
+            <label>CUIT <input required id="sCuit" placeholder="30-12345678-9" /></label>
+            <label>CBU <input required id="sCbu" placeholder="22 dígitos" /></label>
+            <label>
+              Centro de Costos
+              <select required id="sCentroCostos">
+                <option value="">Seleccionar...</option>
+                <option value="ALQUILERES">Alquileres</option>
+                <option value="PROVEEDORES_FIJOS">Proveedores fijos</option>
+                <option value="VARIABLES">Variables</option>
+                <option value="SERVICIOS">Servicios</option>
+                <option value="OTROS">Otros</option>
+              </select>
+            </label>
+            <label>Responsable <input required id="sResponsable" /></label>
+            <label>Contacto <input required id="sContacto" placeholder="Tel / mail" /></label>
+            <button class="primary-btn" type="submit">Guardar proveedor</button>
+          </form>
+
+          <div class="table-wrap" style="margin-top: 1rem">
+            <table>
+              <thead>
+                <tr>
+                  <th>Proveedor</th>
+                  <th>CUIT</th>
+                  <th>CBU</th>
+                  <th>Centro de Costos</th>
+                  <th>Responsable</th>
+                  <th>Contacto</th>
+                </tr>
+              </thead>
+              <tbody id="suppliersBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="grid kpi-grid" id="kpiGrid" style="margin-top: 1rem"></section>
+
+        <section class="grid charts-grid" style="margin-top: 1rem">
+          <article class="card chart-box"><canvas id="agingChart"></canvas></article>
+          <article class="card chart-box"><canvas id="topSuppliersChart"></canvas></article>
+          <article class="card chart-box"><canvas id="paidVsPendingChart"></canvas></article>
+        </section>
+
+        <section class="card" style="margin-top: 1rem">
+          <h3>Facturas de proveedores</h3>
+          <div class="toolbar">
+            <label>Proveedor <select id="filterSupplier"><option value="">Todos</option></select></label>
+            <label>
+              Centro de Costos
+              <select id="filterCostCenter">
+                <option value="">Todos</option>
+                <option value="ALQUILERES">Alquileres</option>
+                <option value="PROVEEDORES_FIJOS">Proveedores fijos</option>
+                <option value="VARIABLES">Variables</option>
+                <option value="SERVICIOS">Servicios</option>
+                <option value="OTROS">Otros</option>
+              </select>
+            </label>
+            <label>Estado
+              <select id="filterStatus">
+                <option value="">Todos</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="PAGADO">Pagado</option>
+              </select>
+            </label>
+            <label>¿Sólo vencidas?
+              <select id="filterOverdue">
+                <option value="">Todas</option>
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </label>
+            <label style="flex: 1">Buscar <input id="filterSearch" placeholder="Proveedor, factura, concepto, CUIT o CBU" /></label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="proveedor">Proveedor</th>
+                  <th data-sort="cuit">CUIT</th>
+                  <th data-sort="cbu">CBU</th>
+                  <th data-sort="centro_costos">Centro de Costos</th>
+                  <th data-sort="nro_factura">Nro factura</th>
+                  <th data-sort="concepto">Concepto</th>
+                  <th data-sort="emision">Emisión</th>
+                  <th data-sort="vencimiento">Vencimiento</th>
+                  <th data-sort="importe">Importe</th>
+                  <th data-sort="pagado">Pagado</th>
+                  <th data-sort="saldo">Saldo</th>
+                  <th data-sort="estado">Estado</th>
+                  <th data-sort="dias_vencido">Días vencido</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">Módulo manual · datos guardados en el navegador local</footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/app.js"></script>
+    <script src="./proveedores.js"></script>
+  </body>
+</html>

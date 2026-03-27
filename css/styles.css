@@ -54,7 +54,7 @@ a {
 }
 
 .container {
-  width: min(1200px, 92vw);
+  width: min(1500px, 96vw);
   margin: 1.4rem auto 2rem;
 }
 
@@ -130,13 +130,17 @@ select {
 }
 
 .kpi-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
 .kpi-value {
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   font-weight: 700;
   margin: 0.3rem 0;
+}
+
+.kpi-grid .card {
+  min-height: 140px;
 }
 
 .kpi-caption {
@@ -145,11 +149,11 @@ select {
 }
 
 .charts-grid {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
 .chart-box {
-  height: 290px;
+  height: 420px;
 }
 
 .alert-list {
@@ -245,11 +249,11 @@ th:hover {
   }
 
   .kpi-value {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
   }
 
   .chart-box {
-    height: 250px;
+    height: 290px;
   }
 }
 
